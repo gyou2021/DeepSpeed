@@ -67,7 +67,7 @@ def get_default_compute_capabilities():
             # Special treatment of CUDA 11.0 because compute_86 is not supported.
             compute_caps += ";8.0"
         else:
-            compute_caps += ";8.0;8.6"
+            compute_caps += ";8.0;8.6;9.0"
     return compute_caps
 
 
@@ -415,10 +415,11 @@ class OpBuilder(ABC):
             return '-mcpu=native'
         return '-march=native'
 
-    def is_cuda_enable(self):
+    def get_cuda_compile_flag(self):
         try:
-            assert_no_cuda_mismatch(self.name)
-            return '-D__ENABLE_CUDA__'
+            if not self.is_rocm_pytorch():
+                assert_no_cuda_mismatch(self.name)
+                return "-D__ENABLE_CUDA__"
         except MissingCUDAException:
             print(f"{WARNING} {self.name} cuda is missing or is incompatible with installed torch, "
                   "only cpu ops can be compiled!")
@@ -839,7 +840,7 @@ class TorchCPUOpBuilder(CUDAOpBuilder):
 
         CPU_ARCH = self.cpu_arch()
         SIMD_WIDTH = self.simd_width()
-        CUDA_ENABLE = self.is_cuda_enable()
+        CUDA_ENABLE = self.get_cuda_compile_flag()
         args += [
             CPU_ARCH,
             '-fopenmp',
