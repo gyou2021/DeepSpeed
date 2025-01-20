@@ -281,6 +281,7 @@ class AutoTP():
                 return True
         return False
 
+    ## tp parser based on autoTP config in environment
     def tp_parser(model):
         policy_list = []
         module_list = []
@@ -323,7 +324,7 @@ class AutoTP():
             for key, submodule in module._modules.items():
                 if isinstance(submodule, nn.Linear):
                     layer_list = layer_list + ["." + key]
-                elif isinstance(submodule, nn.LayerNorm) or key in norm_layer_name_list:
+                elif isinstance(submodule, nn.LayerNorm) or key == 'LayerNorm' or key == 'layer_norm':
                     layer_list = layer_list + ["ln"]
                 else:
                     layer_list = layer_list + AutoTP.get_layers(key, submodule)
@@ -533,7 +534,12 @@ class AutoTP():
             if len(child._buffers) != 0 and self.state_dict is not None:
                 Loading.load_buffer(child, self.state_dict, checking_key)
             if child.__class__ in self.linear_policies:
-                setattr(r_module, name, self.linear_policies[child.__class__](child, prev_name + '.' + name,
+                keepLinearItems = os.environ['keepLinearItems']
+                keepLinearItems = ast.literal_eval(keepLinearItems)
+
+                if any(item not in checking_key for item in keepLinearItems):
+                    setattr(
+                        r_module, name, self.linear_policies[child.__class__](child, prev_name + '.' + name,
                                                                               self.conv_linear_layer))
             elif any(isinstance(child, lp) for lp in self.linear_policies):
                 # Added for falcon model support
